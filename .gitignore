@@ -6,9 +6,11 @@ dist/
 wheels/
 *.egg-info
 evals/github/*
+run_artifacts/*
 
 # Virtual environments
 .venv
 
 # macOS
-.DS_Store/
+.DS_Store
+**/.DS_Store
