@@ -18,3 +18,23 @@ Build a system that automatically creates and maintains tests so developers can 
 ## Out of scope
 - Busywork handed down by managers or leads that developers must complete for promotion.
   - Writing tests can sometimes be used to satisfy that pressure, though the real value may be questionable and the time cost significant.
+
+# Next steps
+
+- Research the web on the solutions that already exists to do that
+  - Conventional solutions
+  - AI based solutions and vendors
+  - Scientific articles
+- Build a very small solution which actually solves the problem quickly
+  - Probably opencode/claude code + prompt
+  - 1-2 hrs
+- Find a way how to measure the quality of the solution
+  - Research the benchmarks that already exists for AI test coverage
+  - Choose the one that suits or come up with a way to build one and create a very small prototype not scaling it yet, but with a clear path to scale
+- Make 2-3 iterations to improve the existing solution
+- Wrap up
+  - Who could potentially buy the company
+  - How the ideal value demo could look like
+  - Some vague steps to get to that goal
+  - Who are the first persons to hire
+  - How to survive while we are getting their
