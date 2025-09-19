@@ -41,3 +41,14 @@ collect:
 		fi \
 	done
 	echo "Collected docs are in run_artifacts/$$TIMESTAMP/"
+
+.PHONY: clean
+
+clean:
+	set -x; \
+	if [ -d run_artifacts ]; then \
+		rm -rf run_artifacts/*; \
+		echo "Cleaned run_artifacts directory"; \
+	else \
+		echo "run_artifacts directory does not exist"; \
+	fi
