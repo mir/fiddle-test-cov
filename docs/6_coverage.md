@@ -11,20 +11,23 @@ A repeatable coverage signal is the backbone of our evaluation loop. Once Codex 
 - **coverage.py** (invoked through `uv run python -m coverage ...`) gives us deterministic line-by-line execution counts without polluting virtual environments.
 - **pytest** remains the primary test runner; we assume each target repository either uses pytest already or supplies a command that can be mapped to `pytest` via tox or a helper script.
 - **uv** handles dependency hydration (`uv sync`) and avoids cross-repo virtualenv conflicts when we orchestrate many repositories in succession.
+- **Dockerized uv**: every coverage command runs in a container (default image `ghcr.io/astral-sh/uv:latest`) so dependency installs remain isolated and reproducible across repositories.
 
 ## Workflow integration
 1. **Hydrate dependencies**: run `uv sync` inside every repository before collecting coverage so that the Python environment is identical across baseline and post-agent runs.
 2. **Baseline pass**: execute `uv run python -m coverage run -m pytest` prior to invoking the agent. Store the resulting `.coverage` file alongside a `coverage.json`/`coverage.xml` export for human inspection.
 3. **Agent augmentation**: allow `make run` to modify or add tests via Codex. When the agent finishes, rerun the same coverage command. Use `coverage combine` if the agent introduces parametrized runs or multiple invocations.
-4. **Reporting**: produce HTML (`coverage html`) and textual summaries (`coverage report`) that highlight per-file deltas, with special attention to files touched by the SWT-Bench golden patch. Export these into `run_artifacts/<timestamp>/<repo>/coverage/`.
-5. **Diffing**: compare baseline vs augmented coverage data to compute the delta-change metric described in `docs/5_bench.md`. Persist the comparison in a machine-readable format (CSV or JSON) for later aggregation.
+4. **Reporting**: produce HTML (`coverage html`) and textual summaries (`coverage report`) that highlight per-file deltas, with special attention to files touched by the SWT-Bench golden patch. Export these into `run_artifacts/<timestamp>/<phase>/<repo>/`.
+5. **Diffing**: compare baseline vs augmented coverage data with `scripts/coverage_diff.py` to compute the delta-change metric described in `docs/5_bench.md`. Persist the comparison as `coverage_diff.json` (and future derivatives) for later aggregation.
 
-## Makefile hooks (planned)
-- `make coverage-baseline`: iterate over `evals/github/*` and run the baseline command above, emitting artifacts under `run_artifacts/<timestamp>/baseline/`.
-- `make coverage-generated`: assume the agent has already updated tests, rerun coverage, and place artifacts under `run_artifacts/<timestamp>/generated/`.
-- `make coverage-diff`: load the two artifacts, compute aggregate numbers (overall lines covered, lines covered inside the golden patch, and delta percentages), then print a concise summary to stdout.
+All of the steps above are orchestrated by `scripts/run_coverage.py`, which mounts each repository into a Docker container before running `uv` and `coverage` so dependency installs never leak onto the host machine.
 
-These targets keep the control flow explicit while remaining composable with `make run`. They also let us re-run coverage analysis without re-triggering the agent whenever we tweak prompts or adjust repository state.
+## Makefile hooks
+- `make coverage-baseline TIMESTAMP=<bucket>` runs `scripts/run_coverage.py baseline ...` for each repo and writes artifacts under `run_artifacts/<bucket>/baseline/` (including per-repo logs, `summary.json`, and coverage exports).
+- `make coverage-generated TIMESTAMP=<bucket>` reuses the same timestamp bucket to capture the post-agent run, producing artifacts in `run_artifacts/<bucket>/generated/`.
+- `make coverage-diff TIMESTAMP=<bucket>` calls `scripts/coverage_diff.py` to compare the two buckets, prints a textual summary, and stores `coverage_diff.json` alongside the existing artifacts.
+
+Override `TIMESTAMP` when invoking the targets to reuse the same bucket across baseline, generated, and diff phases. With no override, `make` computes a fresh UTC timestamp on each invocation. Set `DOCKER_IMAGE` to point at a different container (for example, a custom image with extra system dependencies) and optionally provide `DOCKER_CACHE` when you want to reuse a mounted `uv` cache inside the workspace. The targets remain composable with `make run`, letting us iterate on coverage without re-triggering the agent when only prompts or analysis code change.
 
 ## Outstanding work
 - Codify the artifact schema (file names, JSON structure) so downstream tooling can parse coverage deltas without guesswork.

@@ -1,5 +1,9 @@
 LATEST_PROMPT := $(shell ls prompts/v*.md | sort -V | tail -1)
-SUBDIRS := $(shell ls evals/github)
+SUBDIRS := $(shell [ -d evals/github ] && ls -1 evals/github)
+TIMESTAMP ?= $(shell date -u +%Y%m%d_%H%M%S)
+ARTIFACTS_ROOT ?= run_artifacts
+DOCKER_IMAGE ?= ghcr.io/astral-sh/uv:latest
+DOCKER_CACHE ?=
 
 .PHONY: repos
 
@@ -52,3 +56,33 @@ clean:
 	else \
 		echo "run_artifacts directory does not exist"; \
 	fi
+.PHONY: coverage-baseline
+
+coverage-baseline:
+	@if [ ! -d evals/github ]; then \
+		echo "No repositories found under evals/github. Run 'make repos' first."; \
+		exit 1; \
+	fi
+	@echo "Collecting baseline coverage with timestamp $(TIMESTAMP)"
+	uv run python scripts/run_coverage.py baseline --timestamp $(TIMESTAMP) --artifacts-root $(ARTIFACTS_ROOT) --docker-image python:3.11-bullseye $(if $(strip $(DOCKER_CACHE)),--docker-cache $(DOCKER_CACHE),)
+
+.PHONY: coverage-generated
+
+coverage-generated:
+	@if [ ! -d $(ARTIFACTS_ROOT)/$(TIMESTAMP)/baseline ]; then \
+		echo "Baseline artifacts missing at $(ARTIFACTS_ROOT)/$(TIMESTAMP)/baseline. Set TIMESTAMP=<existing run>."; \
+		exit 1; \
+	fi
+	@echo "Collecting generated coverage with timestamp $(TIMESTAMP)"
+	uv run python scripts/run_coverage.py generated --timestamp $(TIMESTAMP) --artifacts-root $(ARTIFACTS_ROOT) --docker-image $(DOCKER_IMAGE) $(if $(strip $(DOCKER_CACHE)),--docker-cache $(DOCKER_CACHE),)
+
+.PHONY: coverage-diff
+
+coverage-diff:
+	@if [ ! -d $(ARTIFACTS_ROOT)/$(TIMESTAMP)/baseline ] || [ ! -d $(ARTIFACTS_ROOT)/$(TIMESTAMP)/generated ]; then \
+		echo "Baseline or generated artifacts missing under $(ARTIFACTS_ROOT)/$(TIMESTAMP)."; \
+		echo "Run 'make coverage-baseline TIMESTAMP=$(TIMESTAMP)' and 'make coverage-generated TIMESTAMP=$(TIMESTAMP)' first."; \
+		exit 1; \
+	fi
+	uv run python scripts/coverage_diff.py --timestamp $(TIMESTAMP) --artifacts-root $(ARTIFACTS_ROOT)
+
