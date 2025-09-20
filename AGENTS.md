@@ -8,16 +8,6 @@
 - **Lint**: No specific linter configured
 - **Format**: No specific formatter configured
 
-## Code Style Guidelines
-- **Python version**: 3.13+
-- **Imports**: Standard library first, then third-party, then local imports
-- **Naming**: snake_case for functions/variables, PascalCase for classes
-- **Types**: Use type hints where beneficial, but keep simple
-- **Error handling**: Use try/except with specific exceptions
-- **Docstrings**: Use triple quotes for module/class/function docs
-- **Line length**: Keep under 100 characters
-- **Formatting**: Follow PEP 8 basics, 4-space indentation
-
 ## Project Structure
 - Use `docs/` for documentation and research files
 - Use `evals/` for evaluation framework
