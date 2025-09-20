@@ -1,4 +1,5 @@
 LATEST_PROMPT := $(shell ls prompts/v*.md | sort -V | tail -1)
+LATEST_PROMPT_PATH := $(abspath $(LATEST_PROMPT))
 SUBDIRS := $(shell [ -d evals/github ] && ls -1 evals/github)
 TIMESTAMP ?= $(shell date -u +%Y%m%d_%H%M%S)
 ARTIFACTS_ROOT ?= run_artifacts
@@ -27,7 +28,7 @@ run:
 		(cd evals/github/$$dir && \
 		git reset --hard HEAD && \
 		git clean -fd && \
-		codex exec --cd evals/github/$$dir --sandbox workspace-write "$$(cat $(LATEST_PROMPT))"); \
+		codex exec --cd evals/github/$$dir --sandbox workspace-write "$$(cat '$(LATEST_PROMPT_PATH)')"); \
 	done
 	echo "Run completed. Run make collect to gather summaries."
 
@@ -85,4 +86,3 @@ coverage-diff:
 		exit 1; \
 	fi
 	uv run python scripts/coverage_diff.py --timestamp $(TIMESTAMP) --artifacts-root $(ARTIFACTS_ROOT)
-
