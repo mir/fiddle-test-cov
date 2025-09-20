@@ -43,6 +43,7 @@ codespeak/
 ### Prerequisites
 
 - Python 3.13+
+- uv (recommended for running Python commands and managing dependencies)
 - Git
 - Make
 - openai codex cli
