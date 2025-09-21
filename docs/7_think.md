@@ -33,5 +33,3 @@ Create two sets of evaluations - fast and slow.
 
 ## Next steps
 - [x] Extract some test cases from SWT-bench in Markdown format
-- [ ] Read through 10 of them
-- [ ] Decide which ones can be used for further work

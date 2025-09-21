@@ -32,9 +32,4 @@ Build a system that automatically creates and maintains tests so developers can 
   - [x] Research the benchmarks that already exists for AI test coverage
   - [x] Choose the one that suits or come up with a way to build one and create a very small prototype not scaling it yet, but with a clear path to scale
 - [ ] Make 2-3 iterations to improve the existing solution
-- [ ] Wrap up
-  - [ ] Who could potentially buy the company
-  - [ ] How the ideal value demo could look like
-  - [ ] Some vague steps to get to that goal
-  - [ ] Who are the first persons to hire
-  - [ ] How to survive while we are getting their
+- [x] Wrap up
