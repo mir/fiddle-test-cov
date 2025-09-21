@@ -11,7 +11,7 @@ A repeatable coverage signal is the backbone of our evaluation loop. Once Codex 
 - **coverage.py** (invoked through `uv run python -m coverage ...`) gives us deterministic line-by-line execution counts without polluting virtual environments.
 - **pytest** remains the primary test runner; we assume each target repository either uses pytest already or supplies a command that can be mapped to `pytest` via tox or a helper script.
 - **uv** handles dependency hydration (`uv sync`) and avoids cross-repo virtualenv conflicts when we orchestrate many repositories in succession.
-- **Dockerized uv**: every coverage command runs in a container (default image `ghcr.io/astral-sh/uv:latest`) so dependency installs remain isolated and reproducible across repositories.
+- **Dockerized environment**: every coverage command runs in a container (default image `python:3.11-bullseye`) so dependency installs remain isolated and reproducible across repositories.
 
 ## Workflow integration
 1. **Hydrate dependencies**: run `uv sync` inside every repository before collecting coverage so that the Python environment is identical across baseline and post-agent runs.
@@ -24,8 +24,8 @@ All of the steps above are orchestrated by `scripts/run_coverage.py`, which moun
 
 ## Makefile hooks
 - `make coverage-baseline TIMESTAMP=<bucket>` runs `scripts/run_coverage.py baseline ...` for each repo and writes artifacts under `run_artifacts/<bucket>/baseline/` (including per-repo logs, `summary.json`, and coverage exports).
-- `make coverage-generated TIMESTAMP=<bucket>` reuses the same timestamp bucket to capture the post-agent run, producing artifacts in `run_artifacts/<bucket>/generated/`.
-- `make coverage-diff TIMESTAMP=<bucket>` calls `scripts/coverage_diff.py` to compare the two buckets, prints a textual summary, and stores `coverage_diff.json` alongside the existing artifacts.
+- `make coverage-generated` automatically reuses the most recent baseline bucket when `TIMESTAMP` is not provided, producing artifacts in `run_artifacts/<bucket>/generated/`. Override the bucket with `TIMESTAMP=<bucket>` when you need to target a specific run.
+- `make coverage-diff` also defaults to the latest baseline bucket and requires matching generated artifacts. Set `TIMESTAMP=<bucket>` explicitly to diff older runs.
 
 Override `TIMESTAMP` when invoking the targets to reuse the same bucket across baseline, generated, and diff phases. With no override, `make` computes a fresh UTC timestamp on each invocation. Set `DOCKER_IMAGE` to point at a different container (for example, a custom image with extra system dependencies) and optionally provide `DOCKER_CACHE` when you want to reuse a mounted `uv` cache inside the workspace. The targets remain composable with `make run`, letting us iterate on coverage without re-triggering the agent when only prompts or analysis code change.
 

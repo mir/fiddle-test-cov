@@ -26,10 +26,7 @@ def parse_args() -> argparse.Namespace:
         choices=["baseline", "generated"],
         help="Which stage of the workflow is being executed.",
     )
-    parser.add_argument(
-        "--timestamp",
-        help="UTC timestamp bucket for artifacts (YYYYmmdd_HHMMSS). Defaults to now.",
-    )
+
     parser.add_argument(
         "--artifacts-root",
         default="run_artifacts",
@@ -201,12 +198,12 @@ def build_docker_command(
     if sys.stdout.isatty():
         command.append("-t")
 
-    uid_fn = getattr(os, "getuid", None)
-    gid_fn = getattr(os, "getgid", None)
-    if callable(uid_fn) and callable(gid_fn):
-        uid = uid_fn()
-        gid = gid_fn()
-        command.extend(["--user", f"{uid}:{gid}"])
+    # uid_fn = getattr(os, "getuid", None)
+    # gid_fn = getattr(os, "getgid", None)
+    # if callable(uid_fn) and callable(gid_fn):
+    #     uid = uid_fn()
+    #     gid = gid_fn()
+    #     command.extend(["--user", f"{uid}:{gid}"])
 
     repo_abs = repo_path.resolve()
     command.extend(["-v", f"{repo_abs}:/workspace", "-w", "/workspace"])
@@ -250,7 +247,6 @@ def should_run(repo_path: Path) -> bool:
 def execute_for_repo(
     repo: str,
     phase: str,
-    timestamp: str,
     artifacts_root: Path,
     github_root: Path,
     skip_html: bool,
@@ -258,7 +254,9 @@ def execute_for_repo(
     docker_cache: Optional[Path],
 ) -> RepoResult:
     repo_path = github_root / repo
-    artifacts_dir = artifacts_root / timestamp / phase / repo
+    # Use static folder structure instead of timestamp
+    phase_dir = artifacts_root / ("coverage_reports_before" if phase == "baseline" else "coverage_reports_after")
+    artifacts_dir = phase_dir / repo
     artifacts_dir.mkdir(parents=True, exist_ok=True)
 
     started = time.time()
@@ -304,12 +302,13 @@ def execute_for_repo(
 
     # Step 1: install basic testing tools and Django
     user_env = {**(env or {}), "PYTHONUSERBASE": "/workspace/.local"}
-    if "uv" in docker_image:
-        result = run_docker_command(docker_image, repo_path, docker_cache, ["pip", "install", "--user", "coverage", "pytest", "pytest-django", "django==3.2.19", "pyjwt", "celery", "python-jose"], user_env)
-    else:
-        result = run_docker_command(docker_image, repo_path, docker_cache, ["pip", "install", "--user", "coverage", "pytest", "pytest-django", "django==3.2.19", "pyjwt", "celery", "python-jose"], user_env)
+    result = run_docker_command(docker_image, repo_path, docker_cache, ["pip", "install", "--user", "coverage", "pytest", "pytest-django", "django==3.2.19", "pyjwt", "celery", "python-jose"], user_env)
     commands.append(result)
     log_lines.append(format_log_entry(result))
+
+    status = "completed"
+    if result.returncode != 0:
+        status = "dependency_sync_failed"
 
     # Step 1b: install project dependencies
     if (repo_path / "requirements.txt").exists():
@@ -327,9 +326,7 @@ def execute_for_repo(
         if test_req_result.returncode != 0 and status == "completed":
             status = "dependency_sync_failed"
 
-    status = "completed"
-    if result.returncode != 0:
-        status = "dependency_sync_failed"
+
 
     # Determine the python command prefix based on docker image
     if "uv" in docker_image:
@@ -440,7 +437,6 @@ def execute_for_repo(
     metadata_path = artifacts_dir / "metadata.json"
     metadata = {
         "phase": phase,
-        "timestamp": timestamp,
         "repository": repo,
         "status": status,
         "commands": [cmd.as_dict() for cmd in commands],
@@ -476,7 +472,6 @@ def execute_for_repo(
 
 def main() -> int:
     args = parse_args()
-    timestamp = ensure_timestamp(args.timestamp)
     artifacts_root = Path(args.artifacts_root)
     github_root = Path(args.github_root)
     docker_image = args.docker_image
@@ -496,7 +491,6 @@ def main() -> int:
         textwrap.dedent(
             f"""
             Running coverage phase '{args.phase}' for {len(repos)} repos.
-            Timestamp bucket: {timestamp}
             Artifacts root: {artifacts_root}
             GitHub root: {github_root}
             """
@@ -509,7 +503,6 @@ def main() -> int:
         repo_result = execute_for_repo(
             repo=repo,
             phase=args.phase,
-            timestamp=timestamp,
             artifacts_root=artifacts_root,
             github_root=github_root,
             skip_html=args.skip_html,
@@ -538,7 +531,6 @@ def main() -> int:
 
     summary = {
         "phase": args.phase,
-        "timestamp": timestamp,
         "generated_at": iso_timestamp(time.time()),
         "artifacts_root": str(artifacts_root),
         "github_root": str(github_root),
@@ -547,7 +539,8 @@ def main() -> int:
         "results": [result.as_dict() for result in results],
     }
 
-    phase_dir = artifacts_root / timestamp / args.phase
+    # Use static folder structure instead of timestamp
+    phase_dir = artifacts_root / ("coverage_reports_before" if args.phase == "baseline" else "coverage_reports_after")
     phase_dir.mkdir(parents=True, exist_ok=True)
     summary_path = phase_dir / "summary.json"
     summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True))

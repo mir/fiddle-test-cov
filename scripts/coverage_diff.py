@@ -73,43 +73,35 @@ class RepoDiff:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Diff baseline vs generated coverage artifacts.")
     parser.add_argument(
-        "--timestamp",
-        help="Timestamp bucket to inspect (under --artifacts-root).",
-    )
-    parser.add_argument(
         "--artifacts-root",
         default="run_artifacts",
         help="Root directory for stored artifacts.",
     )
     parser.add_argument(
         "--baseline-path",
-        help="Explicit path to the baseline artifacts directory (overrides --timestamp).",
+        help="Explicit path to the baseline artifacts directory.",
     )
     parser.add_argument(
         "--generated-path",
-        help="Explicit path to the generated artifacts directory (overrides --timestamp).",
+        help="Explicit path to the generated artifacts directory.",
     )
     parser.add_argument(
         "--output",
-        help="Optional file to write JSON summary to. Defaults to <timestamp>/coverage_diff.json when timestamp is provided.",
+        help="Optional file to write JSON summary to.",
     )
     return parser.parse_args()
 
 
-def resolve_directories(args: argparse.Namespace) -> tuple[Path, Path, Optional[str]]:
+def resolve_directories(args: argparse.Namespace) -> tuple[Path, Path]:
     artifacts_root = Path(args.artifacts_root)
-    timestamp = args.timestamp
 
     if args.baseline_path and args.generated_path:
-        return Path(args.baseline_path), Path(args.generated_path), timestamp
+        return Path(args.baseline_path), Path(args.generated_path)
 
-    if not timestamp:
-        raise SystemExit("Provide either --timestamp or both --baseline-path/--generated-path.")
-
-    base_dir = artifacts_root / timestamp
-    baseline_dir = base_dir / "baseline"
-    generated_dir = base_dir / "generated"
-    return baseline_dir, generated_dir, timestamp
+    # Use static folder structure
+    baseline_dir = artifacts_root / "coverage_reports_before"
+    generated_dir = artifacts_root / "coverage_reports_after"
+    return baseline_dir, generated_dir
 
 
 def collect_repositories(baseline_dir: Path, generated_dir: Path) -> List[str]:
@@ -218,11 +210,7 @@ def format_repo_line(diff: RepoDiff) -> str:
 
 def main() -> int:
     args = parse_args()
-    try:
-        baseline_dir, generated_dir, timestamp = resolve_directories(args)
-    except SystemExit as exc:
-        print(exc, file=sys.stderr)
-        return 2
+    baseline_dir, generated_dir = resolve_directories(args)
 
     if not baseline_dir.exists() or not generated_dir.exists():
         print(
@@ -256,19 +244,15 @@ def main() -> int:
         f"Delta lines: {agg_delta['covered_lines']} | Delta pct: {agg_delta['percent_covered']}"
     )
 
-    timestamp_used = timestamp or dt.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     output_path: Optional[Path]
     if args.output:
         output_path = Path(args.output)
-    elif timestamp:
-        output_path = Path(args.artifacts_root) / timestamp_used / "coverage_diff.json"
     else:
         output_path = None
 
     if output_path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
-            "timestamp": timestamp,
             "generated_at": dt.datetime.utcnow().isoformat(timespec="seconds") + "Z",
             "baseline_dir": str(baseline_dir),
             "generated_dir": str(generated_dir),

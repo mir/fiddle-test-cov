@@ -28,9 +28,9 @@ Build a system that automatically creates and maintains tests so developers can 
 - [x] Build a very small solution which actually solves the problem quickly
   - [x] Probably opencode/claude code + prompt
   - [x] 1-2 hrs
-- [ ] Find a way how to measure the quality of the solution
-  - [ ] Research the benchmarks that already exists for AI test coverage
-  - [ ] Choose the one that suits or come up with a way to build one and create a very small prototype not scaling it yet, but with a clear path to scale
+- [x] Find a way how to measure the quality of the solution
+  - [x] Research the benchmarks that already exists for AI test coverage
+  - [x] Choose the one that suits or come up with a way to build one and create a very small prototype not scaling it yet, but with a clear path to scale
 - [ ] Make 2-3 iterations to improve the existing solution
 - [ ] Wrap up
   - [ ] Who could potentially buy the company
