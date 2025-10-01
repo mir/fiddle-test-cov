@@ -6,7 +6,7 @@ Coverage-driven automation for generating and evaluating tests across target rep
 See the docs/ folder for the cthought process and results.
 
 ## Setup
-- Requirements: Python 3.13+, uv, Git, Make, OpenAI Codex CLI
+- Requirements: Python 3.13+, uv, Git, OpenAI Codex CLI
 - Install dependencies: `uv sync`
 
 ## Workflow
@@ -16,31 +16,31 @@ See the docs/ folder for the cthought process and results.
 Run the complete workflow with a single command:
 
 ```bash
-uv run python -m codespeak run-all
+uv run codespeak run-all
 ```
 
 ### Manual Steps
 
 Or run commands individually in this sequence:
 
-1. **Download repositories**: `uv run python -m codespeak download-repos`
-2. **Collect baseline coverage**: `uv run python -m codespeak coverage baseline`
-3. **Generate tests**: `uv run python -m codespeak generate`
-4. **Collect artifacts**: `uv run python -m codespeak collect-artifacts`
-5. **Collect generated coverage**: `uv run python -m codespeak coverage generated`
-6. **Compare coverage**: `uv run python -m codespeak coverage diff`
+1. **Download repositories**: `uv run codespeak download-repos`
+2. **Collect baseline coverage**: `uv run codespeak coverage baseline`
+3. **Generate tests**: `uv run codespeak generate`
+4. **Collect artifacts**: `uv run codespeak collect-artifacts`
+5. **Collect generated coverage**: `uv run codespeak coverage generated`
+6. **Compare coverage**: `uv run codespeak coverage diff`
 
 ## Core Commands
-- `uv run python -m codespeak run-all` – run the complete evaluation workflow (all steps below)
-- `uv run python -m codespeak download-repos` – clone repositories listed in `evals/github_repos.yaml` into `evals/github/`
-- `uv run python -m codespeak generate` – apply the latest prompt from `prompts/` to each cloned repo via `codex exec`
-- `uv run python -m codespeak collect-artifacts` – copy generated docs into `run_artifacts/agent_reports/`
-- `uv run python -m codespeak coverage baseline` – gather pre-generation coverage metrics
-- `uv run python -m codespeak coverage generated` – gather post-generation coverage metrics
-- `uv run python -m codespeak coverage diff` – compare baseline vs generated coverage reports
+- `uv run codespeak run-all` – run the complete evaluation workflow (all steps below)
+- `uv run codespeak download-repos` – clone repositories listed in `evals/github_repos.yaml` into `evals/github/`
+- `uv run codespeak generate` – apply the latest prompt from `prompts/` to each cloned repo via `codex exec`
+- `uv run codespeak collect-artifacts` – copy generated docs into `run_artifacts/agent_reports/`
+- `uv run codespeak coverage baseline` – gather pre-generation coverage metrics
+- `uv run codespeak coverage generated` – gather post-generation coverage metrics
+- `uv run codespeak coverage diff` – compare baseline vs generated coverage reports
 
 ## Repository Guide
-- `codespeak/` – main package containing CLI and coverage modules
+- `src/codespeak/` – main package containing CLI and coverage modules
   - `cli.py` – modern CLI tool for all automation tasks
   - `coverage/` – coverage collection and analysis modules
 - `pyproject.toml` – Python package metadata (requires Python ≥3.13, depends on `coverage`, `click`, `rich`)
