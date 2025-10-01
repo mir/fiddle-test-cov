@@ -17,22 +17,31 @@ from .models import CommandResult
 def run_command(command: Iterable[str]) -> CommandResult:
     """Execute a shell command and capture its output."""
     command_list = list(command)
+
+    # Print command before execution
+    print(f"$ {' '.join(command_list)}", flush=True)
+
     start = time.perf_counter()
     try:
         proc = subprocess.run(  # noqa: S603, S607 - deliberate subprocess call
             command_list,
-            capture_output=True,
+            capture_output=False,  # Show output in real-time
             text=True,
             check=False,
         )
         returncode = proc.returncode
-        stdout = proc.stdout
-        stderr = proc.stderr
+        stdout = ""
+        stderr = ""
     except FileNotFoundError as exc:
         returncode = 127
         stdout = ""
         stderr = str(exc)
+        print(f"Error: {exc}", file=sys.stderr, flush=True)
     duration = time.perf_counter() - start
+
+    # Print exit code and duration
+    print(f"[exit {returncode} | {duration:.2f}s]", flush=True)
+
     return CommandResult(command_list, returncode, stdout, stderr, duration)
 
 

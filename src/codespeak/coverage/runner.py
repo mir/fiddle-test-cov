@@ -108,6 +108,7 @@ def execute_for_repo(
         pip_packages = [
             "coverage",
             "pytest",
+            "pytest-cov",
             "pytest-django",
             "django==3.2.19",
             "pyjwt",
@@ -155,10 +156,12 @@ def execute_for_repo(
             if req_result.returncode != 0 and status == "completed":
                 status = "dependency_sync_failed"
 
-    # Determine the python command prefix based on docker image
     if "uv" in docker_image:
-        python_cmd = ["run", "python"]
+        python_cmd = ["uv", "run", "python"]
     else:
+        # Determine the python command prefix based on docker image
+        # For coverage/pytest, we use system python directly (not uv run)
+        # because we want to use the globally installed packages
         python_cmd = ["python"]
 
     # Set PATH to include user-installed binaries

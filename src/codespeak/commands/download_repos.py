@@ -114,14 +114,15 @@ def download_repos(github_root: str, repos_file: str):
             task = progress.add_task(f"Cloning {config.name}...", total=None)
 
             try:
+                progress.console.print(f"  $ git clone {config.url} {repo_dir}")
                 subprocess.run(
                     ["git", "clone", config.url, str(repo_dir)],
-                    capture_output=True,
+                    capture_output=False,  # Show output in real-time
                     check=True,
                 )
                 progress.console.print(f"  ✓ [green]{config.name}[/green]")
             except subprocess.CalledProcessError as e:
-                progress.console.print(f"  ✗ [red]{config.name}[/red] - {e.stderr.decode()}")
+                progress.console.print(f"  ✗ [red]{config.name}[/red] - Command failed with exit code {e.returncode}")
             finally:
                 progress.remove_task(task)
 

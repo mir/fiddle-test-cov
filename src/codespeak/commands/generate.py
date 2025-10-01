@@ -79,39 +79,43 @@ def generate(github_root: str, prompts_dir: str, repo: tuple[str, ...]):
 
         # Reset repository
         try:
+            console.print("  $ git reset --hard HEAD")
             subprocess.run(
                 ["git", "reset", "--hard", "HEAD"],
                 cwd=repo_dir,
-                capture_output=True,
+                capture_output=False,  # Show output in real-time
                 check=True,
             )
+            console.print("  $ git clean -fd")
             subprocess.run(
                 ["git", "clean", "-fd"],
                 cwd=repo_dir,
-                capture_output=True,
+                capture_output=False,  # Show output in real-time
                 check=True,
             )
         except subprocess.CalledProcessError as e:
-            console.print(f"  ✗ Failed to reset repository: {e.stderr.decode()}")
+            console.print(f"  ✗ Failed to reset repository: exit code {e.returncode}")
             continue
 
         # Run codex
         try:
+            codex_cmd = [
+                "codex",
+                "exec",
+                "--cd",
+                str(repo_dir),
+                "--sandbox",
+                "workspace-write",
+                prompt_content,
+            ]
+            console.print(f"  $ {' '.join(codex_cmd[:6])} <prompt>")
             subprocess.run(
-                [
-                    "codex",
-                    "exec",
-                    "--cd",
-                    str(repo_dir),
-                    "--sandbox",
-                    "workspace-write",
-                    prompt_content,
-                ],
+                codex_cmd,
                 check=True,
             )
             console.print("  ✓ [green]Completed[/green]\n")
-        except subprocess.CalledProcessError:
-            console.print("  ✗ [red]Failed[/red]\n")
+        except subprocess.CalledProcessError as e:
+            console.print(f"  ✗ [red]Failed[/red] - exit code {e.returncode}\n")
 
     console.print("[bold green]✓[/bold green] Run completed")
     console.print("Run [bold]codespeak collect-artifacts[/bold] to gather summaries")

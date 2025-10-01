@@ -115,7 +115,7 @@ class DockerConfig:
     """Docker configuration for a repository."""
 
     enabled: bool = True
-    image: str = "python:3.11-bullseye"
+    image: str = "ghcr.io/astral-sh/uv:python3.11-bookworm-slim"
     packages: list[str] = field(default_factory=list)
     pip_packages: list[str] = field(default_factory=list)
     env: dict[str, str] = field(default_factory=dict)
@@ -127,7 +127,7 @@ class DockerConfig:
             return cls()
         return cls(
             enabled=data.get("enabled", True),
-            image=data.get("image", "python:3.11-bullseye"),
+            image=data.get("image", "ghcr.io/astral-sh/uv:python3.11-bookworm-slim"),
             packages=data.get("packages", []),
             pip_packages=data.get("pip_packages", []),
             env=data.get("env", {}),
@@ -138,7 +138,7 @@ class DockerConfig:
 class CoverageConfig:
     """Coverage execution configuration for a repository."""
 
-    run_command: str = "python -m coverage run -m pytest"
+    run_command: str = "uv run python -m coverage run -m pytest"
     export_formats: list[str] = field(default_factory=lambda: ["json", "xml", "html"])
 
     @classmethod
@@ -147,7 +147,7 @@ class CoverageConfig:
         if not data:
             return cls()
         return cls(
-            run_command=data.get("run_command", "python -m coverage run -m pytest"),
+            run_command=data.get("run_command", "uv run python -m coverage run -m pytest"),
             export_formats=data.get("export_formats", ["json", "xml", "html"]),
         )
 

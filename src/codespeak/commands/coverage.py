@@ -67,7 +67,7 @@ def coverage():
 )
 @click.option(
     "--docker-image",
-    default="python:3.11-bullseye",
+    default="ghcr.io/astral-sh/uv:python3.11-bookworm-slim",
     help="Docker image for running coverage",
     show_default=True,
 )
@@ -166,7 +166,7 @@ def coverage_baseline(
 )
 @click.option(
     "--docker-image",
-    default="python:3.11-bullseye",
+    default="ghcr.io/astral-sh/uv:python3.11-bookworm-slim",
     help="Docker image for running coverage",
     show_default=True,
 )
