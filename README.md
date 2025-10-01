@@ -30,10 +30,21 @@ Or run commands individually in this sequence:
 5. **Collect generated coverage**: `uv run codespeak coverage generated`
 6. **Compare coverage**: `uv run codespeak coverage diff`
 
+### Update Tests in Current Directory
+
+To maintain test coverage in any repository:
+
+```bash
+uv run codespeak update-tests
+```
+
+This runs the same prompt as the generate command but operates in your current directory.
+
 ## Core Commands
 - `uv run codespeak run-all` – run the complete evaluation workflow (all steps below)
 - `uv run codespeak download-repos` – clone repositories listed in `evals/github_repos.yaml` into `evals/github/`
 - `uv run codespeak generate` – apply the latest prompt from `prompts/` to each cloned repo via `codex exec`
+- `uv run codespeak update-tests` – run the same prompt as generate but in the current directory (useful for maintaining test coverage in any repo)
 - `uv run codespeak collect-artifacts` – copy generated docs into `run_artifacts/agent_reports/`
 - `uv run codespeak coverage baseline` – gather pre-generation coverage metrics
 - `uv run codespeak coverage generated` – gather post-generation coverage metrics

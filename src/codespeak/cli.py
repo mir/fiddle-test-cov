@@ -11,6 +11,7 @@ from codespeak.commands import (
     download_repos,
     generate,
     run_all,
+    update_tests,
 )
 
 
@@ -40,6 +41,7 @@ def cli():
 # Register commands
 cli.add_command(download_repos)
 cli.add_command(generate)
+cli.add_command(update_tests)
 cli.add_command(collect_artifacts)
 cli.add_command(run_all)
 cli.add_command(coverage)
