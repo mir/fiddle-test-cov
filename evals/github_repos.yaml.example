@@ -1,2 +1,42 @@
-- https://github.com/taigaio/taiga-back
-- https://github.com/mir/fiddle-test-cov
+# Configuration for repositories to evaluate
+# Each repository can specify Docker settings and coverage commands
+
+- url: https://github.com/taigaio/taiga-back
+  docker:
+    enabled: true
+    image: python:3.11-bullseye
+    packages:
+      # System packages to install via apt-get
+      - postgresql-client
+      - libpq-dev
+    pip_packages:
+      # Python packages to install via pip --user
+      - coverage
+      - pytest
+      - pytest-django
+      - django==3.2.19
+      - pyjwt
+      - celery
+      - python-jose
+    env:
+      # Environment variables for test execution
+      DJANGO_SETTINGS_MODULE: tests.config
+  requirements:
+    # Install requirements files if they exist
+    - requirements.txt
+    - requirements-tests.txt
+  coverage:
+    # Command to run coverage collection (relative to repo root)
+    run_command: python -m coverage run -m pytest
+    # Export formats to generate
+    export_formats:
+      - json
+      - xml
+      - html
+
+- url: https://github.com/mir/fiddle-test-cov
+  docker:
+    enabled: false  # Run directly with uv
+  coverage:
+    # Command using uv to run pytest with coverage
+    run_command: uv run python -m pytest --cov=. --cov-report=json --cov-report=xml --cov-report=html

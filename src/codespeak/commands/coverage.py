@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import click
+import yaml
 from rich.console import Console
 
 from codespeak.coverage import (
@@ -16,8 +17,30 @@ from codespeak.coverage import (
     save_diff_json,
     save_summary,
 )
+from codespeak.coverage.models import RepoConfig
 
 console = Console()
+
+
+def load_repo_configs(repos_file: str = "evals/github_repos.yaml") -> dict[str, RepoConfig]:
+    """Load repository configurations from YAML file.
+
+    Returns:
+        Dictionary mapping repository names to their configurations
+    """
+    repos_path = Path(repos_file)
+    if not repos_path.exists():
+        return {}
+
+    with open(repos_path) as f:
+        repo_data = yaml.safe_load(f)
+
+    if not repo_data:
+        return {}
+
+    # Parse into RepoConfig objects and create name -> config mapping
+    configs = [RepoConfig.from_dict(item) for item in repo_data]
+    return {config.name: config for config in configs}
 
 
 @click.group()
@@ -100,6 +123,9 @@ def coverage_baseline(
 
     console.print(f"Running coverage phase 'baseline' for {len(repos)} repos.\n")
 
+    # Load repository configurations
+    repo_configs = load_repo_configs()
+
     # Execute coverage collection
     results = execute_coverage_collection(
         phase="baseline",
@@ -109,6 +135,7 @@ def coverage_baseline(
         skip_html=skip_html,
         docker_image=docker_image,
         docker_cache=docker_cache_path,
+        repo_configs=repo_configs,
     )
 
     # Save summary
@@ -197,6 +224,9 @@ def coverage_generated(
 
     console.print(f"Running coverage phase 'generated' for {len(repos)} repos.\n")
 
+    # Load repository configurations
+    repo_configs = load_repo_configs()
+
     # Execute coverage collection
     results = execute_coverage_collection(
         phase="generated",
@@ -206,6 +236,7 @@ def coverage_generated(
         skip_html=skip_html,
         docker_image=docker_image,
         docker_cache=docker_cache_path,
+        repo_configs=repo_configs,
     )
 
     # Save summary

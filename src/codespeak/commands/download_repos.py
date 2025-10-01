@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import subprocess
-import sys
 from pathlib import Path
 
 import click
 import yaml
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
+
+from codespeak.coverage.models import RepoConfig
 
 console = Console()
 
@@ -82,47 +83,45 @@ def download_repos(github_root: str, repos_file: str):
             console.print("  (empty - add repositories manually)")
         console.print()
 
-    # Load repository URLs
+    # Load repository configurations
     with open(repos_path) as f:
-        repo_urls = yaml.safe_load(f)
+        repo_data = yaml.safe_load(f)
 
-    if not repo_urls:
+    if not repo_data:
         console.print("[yellow]Warning:[/yellow] No repositories found in YAML file")
         return
+
+    # Parse into RepoConfig objects (supports both legacy URL strings and new format)
+    repo_configs = [RepoConfig.from_dict(item) for item in repo_data]
 
     # Create github root directory
     github_path.mkdir(parents=True, exist_ok=True)
 
-    console.print(f"[bold blue]Cloning {len(repo_urls)} repositories...[/bold blue]\n")
+    console.print(f"[bold blue]Cloning {len(repo_configs)} repositories...[/bold blue]\n")
 
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        for url in repo_urls:
-            url = url.strip()
-            if not url:
-                continue
-
-            repo_name = Path(url).name.replace(".git", "")
-            repo_dir = github_path / repo_name
+        for config in repo_configs:
+            repo_dir = github_path / config.name
 
             if repo_dir.exists():
-                progress.console.print(f"  ✓ [dim]{repo_name}[/dim] (already exists)")
+                progress.console.print(f"  ✓ [dim]{config.name}[/dim] (already exists)")
                 continue
 
-            task = progress.add_task(f"Cloning {repo_name}...", total=None)
+            task = progress.add_task(f"Cloning {config.name}...", total=None)
 
             try:
                 subprocess.run(
-                    ["git", "clone", url, str(repo_dir)],
+                    ["git", "clone", config.url, str(repo_dir)],
                     capture_output=True,
                     check=True,
                 )
-                progress.console.print(f"  ✓ [green]{repo_name}[/green]")
+                progress.console.print(f"  ✓ [green]{config.name}[/green]")
             except subprocess.CalledProcessError as e:
-                progress.console.print(f"  ✗ [red]{repo_name}[/red] - {e.stderr.decode()}")
+                progress.console.print(f"  ✗ [red]{config.name}[/red] - {e.stderr.decode()}")
             finally:
                 progress.remove_task(task)
 

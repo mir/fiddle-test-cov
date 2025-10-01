@@ -14,3 +14,6 @@ run_artifacts/*
 # macOS
 .DS_Store
 **/.DS_Store
+
+# 
+evals/github_repos.yaml

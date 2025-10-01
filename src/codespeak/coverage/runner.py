@@ -6,7 +6,7 @@ import json
 import time
 from pathlib import Path
 
-from .models import CommandResult, RepoResult
+from .models import CommandResult, RepoConfig, RepoResult
 from .utils import (
     copy_artifact,
     format_log_entry,
@@ -26,6 +26,7 @@ def execute_for_repo(
     skip_html: bool,
     docker_image: str,
     docker_cache: Path | None,
+    repo_config: RepoConfig | None = None,
 ) -> RepoResult:
     """
     Execute coverage collection for a single repository.
@@ -36,8 +37,9 @@ def execute_for_repo(
         artifacts_root: Root directory for artifacts
         github_root: Root directory containing repositories
         skip_html: Skip HTML report generation
-        docker_image: Docker image to use for execution
+        docker_image: Docker image to use for execution (overridden by repo_config)
         docker_cache: Optional path to Docker cache directory
+        repo_config: Optional repository-specific configuration
 
     Returns:
         RepoResult with status and coverage information
@@ -54,9 +56,15 @@ def execute_for_repo(
     artifacts: list[str] = []
     log_lines: list[str] = []
 
-    env = {"DJANGO_SETTINGS_MODULE": "tests.config"}
+    # Use repo-specific config if provided, otherwise use defaults
+    if repo_config and repo_config.docker.enabled:
+        docker_image = repo_config.docker.image
+        base_env = repo_config.docker.env
+    else:
+        base_env = {"DJANGO_SETTINGS_MODULE": "tests.config"}
+
     if docker_cache is None:
-        env = {**env, "UV_CACHE_DIR": "/workspace/.uv_cache"}
+        base_env = {**base_env, "UV_CACHE_DIR": "/workspace/.uv_cache"}
 
     if not repo_path.exists():
         finished = time.time()
@@ -89,16 +97,15 @@ def execute_for_repo(
             finished_at=iso_timestamp(finished),
         )
 
-    # Step 1: install basic testing tools and Django
-    user_env = {**(env or {}), "PYTHONUSERBASE": "/workspace/.local"}
-    result = run_docker_command(
-        docker_image,
-        repo_path,
-        docker_cache,
-        [
-            "pip",
-            "install",
-            "--user",
+    # Step 1: install packages
+    user_env = {**base_env, "PYTHONUSERBASE": "/workspace/.local"}
+
+    # Determine packages to install
+    if repo_config and repo_config.docker.pip_packages:
+        pip_packages = repo_config.docker.pip_packages
+    else:
+        # Default packages for legacy behavior
+        pip_packages = [
             "coverage",
             "pytest",
             "pytest-django",
@@ -106,7 +113,13 @@ def execute_for_repo(
             "pyjwt",
             "celery",
             "python-jose",
-        ],
+        ]
+
+    result = run_docker_command(
+        docker_image,
+        repo_path,
+        docker_cache,
+        ["pip", "install", "--user"] + pip_packages,
         user_env,
     )
     commands.append(result)
@@ -116,33 +129,31 @@ def execute_for_repo(
     if result.returncode != 0:
         status = "dependency_sync_failed"
 
-    # Step 1b: install project dependencies
-    if (repo_path / "requirements.txt").exists():
-        req_result = run_docker_command(
-            docker_image,
-            repo_path,
-            docker_cache,
-            ["pip", "install", "--user", "-r", "requirements.txt"],
-            user_env,
-        )
-        commands.append(req_result)
-        log_lines.append(format_log_entry(req_result))
-        if req_result.returncode != 0 and status == "completed":
-            status = "dependency_sync_failed"
+    # Step 1b: install requirements files
+    requirements_files = []
+    if repo_config and repo_config.requirements:
+        requirements_files = repo_config.requirements
+    else:
+        # Check for default requirements files
+        if (repo_path / "requirements.txt").exists():
+            requirements_files.append("requirements.txt")
+        if (repo_path / "requirements-tests.txt").exists():
+            requirements_files.append("requirements-tests.txt")
 
-    # Step 1c: install test dependencies
-    if (repo_path / "requirements-tests.txt").exists():
-        test_req_result = run_docker_command(
-            docker_image,
-            repo_path,
-            docker_cache,
-            ["pip", "install", "--user", "-r", "requirements-tests.txt"],
-            user_env,
-        )
-        commands.append(test_req_result)
-        log_lines.append(format_log_entry(test_req_result))
-        if test_req_result.returncode != 0 and status == "completed":
-            status = "dependency_sync_failed"
+    for req_file in requirements_files:
+        req_path = repo_path / req_file
+        if req_path.exists():
+            req_result = run_docker_command(
+                docker_image,
+                repo_path,
+                docker_cache,
+                ["pip", "install", "--user", "-r", req_file],
+                user_env,
+            )
+            commands.append(req_result)
+            log_lines.append(format_log_entry(req_result))
+            if req_result.returncode != 0 and status == "completed":
+                status = "dependency_sync_failed"
 
     # Determine the python command prefix based on docker image
     if "uv" in docker_image:
@@ -152,7 +163,7 @@ def execute_for_repo(
 
     # Set PATH to include user-installed binaries
     user_env = {
-        **(env or {}),
+        **base_env,
         "PYTHONUSERBASE": "/workspace/.local",
         "PATH": ("/workspace/.local/bin:/usr/local/bin:/usr/bin:/bin"),
     }
@@ -169,11 +180,19 @@ def execute_for_repo(
     log_lines.append(format_log_entry(erase))
 
     # Step 3: execute pytest under coverage
+    # Use custom coverage command if provided
+    if repo_config and repo_config.coverage.run_command:
+        # Parse the command string into list
+        coverage_cmd = repo_config.coverage.run_command.split()
+    else:
+        # Default: coverage run with pytest
+        coverage_cmd = python_cmd + ["-m", "coverage", "run", "-m", "pytest"]
+
     coverage_run = run_docker_command(
         docker_image,
         repo_path,
         docker_cache,
-        python_cmd + ["-m", "coverage", "run", "-m", "pytest"],
+        coverage_cmd,
         user_env,
     )
     commands.append(coverage_run)
@@ -183,34 +202,43 @@ def execute_for_repo(
         status = "tests_failed"
 
     # Step 4: export coverage data
-    json_export = run_docker_command(
-        docker_image,
-        repo_path,
-        docker_cache,
-        python_cmd + ["-m", "coverage", "json", "-o", "coverage.json"],
-        user_env,
-    )
-    commands.append(json_export)
-    log_lines.append(format_log_entry(json_export))
+    # Determine export formats
+    if repo_config:
+        export_formats = repo_config.coverage.export_formats
+    else:
+        export_formats = ["json", "xml", "html"]
 
-    if json_export.returncode != 0 and status == "completed":
-        status = "export_failed"
+    # Export JSON format
+    if "json" in export_formats:
+        json_export = run_docker_command(
+            docker_image,
+            repo_path,
+            docker_cache,
+            python_cmd + ["-m", "coverage", "json", "-o", "coverage.json"],
+            user_env,
+        )
+        commands.append(json_export)
+        log_lines.append(format_log_entry(json_export))
+        if json_export.returncode != 0 and status == "completed":
+            status = "export_failed"
 
-    xml_export = run_docker_command(
-        docker_image,
-        repo_path,
-        docker_cache,
-        python_cmd + ["-m", "coverage", "xml", "-o", "coverage.xml"],
-        user_env,
-    )
-    commands.append(xml_export)
-    log_lines.append(format_log_entry(xml_export))
+    # Export XML format
+    if "xml" in export_formats:
+        xml_export = run_docker_command(
+            docker_image,
+            repo_path,
+            docker_cache,
+            python_cmd + ["-m", "coverage", "xml", "-o", "coverage.xml"],
+            user_env,
+        )
+        commands.append(xml_export)
+        log_lines.append(format_log_entry(xml_export))
+        if xml_export.returncode != 0 and status == "completed":
+            status = "export_failed"
 
-    if xml_export.returncode != 0 and status == "completed":
-        status = "export_failed"
-
+    # Export HTML format
     html_export: CommandResult | None = None
-    if not skip_html:
+    if not skip_html and "html" in export_formats:
         html_export = run_docker_command(
             docker_image,
             repo_path,
@@ -292,6 +320,7 @@ def execute_coverage_collection(
     skip_html: bool,
     docker_image: str,
     docker_cache: Path | None,
+    repo_configs: dict[str, RepoConfig] | None = None,
 ) -> list[RepoResult]:
     """
     Execute coverage collection for multiple repositories.
@@ -304,6 +333,7 @@ def execute_coverage_collection(
         skip_html: Skip HTML report generation
         docker_image: Docker image to use for execution
         docker_cache: Optional path to Docker cache directory
+        repo_configs: Optional dictionary mapping repo names to their configs
 
     Returns:
         List of RepoResult objects
@@ -311,6 +341,7 @@ def execute_coverage_collection(
     results: list[RepoResult] = []
     for repo in repos:
         print(f"\n[{phase}] {repo}")
+        repo_config = repo_configs.get(repo) if repo_configs else None
         repo_result = execute_for_repo(
             repo=repo,
             phase=phase,
@@ -319,6 +350,7 @@ def execute_coverage_collection(
             skip_html=skip_html,
             docker_image=docker_image,
             docker_cache=docker_cache,
+            repo_config=repo_config,
         )
         results.append(repo_result)
 

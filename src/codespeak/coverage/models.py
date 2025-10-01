@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -108,3 +108,82 @@ class RepoDiff:
             "delta_lines": self.delta_lines(),
             "delta_percent": self.delta_percent(),
         }
+
+
+@dataclass
+class DockerConfig:
+    """Docker configuration for a repository."""
+
+    enabled: bool = True
+    image: str = "python:3.11-bullseye"
+    packages: list[str] = field(default_factory=list)
+    pip_packages: list[str] = field(default_factory=list)
+    env: dict[str, str] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, data: dict | None) -> DockerConfig:
+        """Create from a dictionary."""
+        if not data:
+            return cls()
+        return cls(
+            enabled=data.get("enabled", True),
+            image=data.get("image", "python:3.11-bullseye"),
+            packages=data.get("packages", []),
+            pip_packages=data.get("pip_packages", []),
+            env=data.get("env", {}),
+        )
+
+
+@dataclass
+class CoverageConfig:
+    """Coverage execution configuration for a repository."""
+
+    run_command: str = "python -m coverage run -m pytest"
+    export_formats: list[str] = field(default_factory=lambda: ["json", "xml", "html"])
+
+    @classmethod
+    def from_dict(cls, data: dict | None) -> CoverageConfig:
+        """Create from a dictionary."""
+        if not data:
+            return cls()
+        return cls(
+            run_command=data.get("run_command", "python -m coverage run -m pytest"),
+            export_formats=data.get("export_formats", ["json", "xml", "html"]),
+        )
+
+
+@dataclass
+class RepoConfig:
+    """Configuration for a single repository."""
+
+    url: str
+    name: str
+    docker: DockerConfig = field(default_factory=DockerConfig)
+    requirements: list[str] = field(default_factory=list)
+    coverage: CoverageConfig = field(default_factory=CoverageConfig)
+
+    @classmethod
+    def from_dict(cls, data: dict | str) -> RepoConfig:
+        """Create from a dictionary or URL string."""
+        # Support legacy format: just a URL string
+        if isinstance(data, str):
+            url = data.strip()
+            name = url.rstrip("/").split("/")[-1].replace(".git", "")
+            return cls(
+                url=url,
+                name=name,
+                docker=DockerConfig(),
+                requirements=[],
+                coverage=CoverageConfig(),
+            )
+
+        # New format: dictionary with configuration
+        url = data["url"].strip()
+        name = url.rstrip("/").split("/")[-1].replace(".git", "")
+        return cls(
+            url=url,
+            name=name,
+            docker=DockerConfig.from_dict(data.get("docker")),
+            requirements=data.get("requirements", []),
+            coverage=CoverageConfig.from_dict(data.get("coverage")),
+        )
