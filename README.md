@@ -9,6 +9,17 @@ See the docs/ folder for the cthought process and results.
 - Requirements: Python 3.13+, uv, Git, Make, OpenAI Codex CLI
 - Install dependencies: `uv sync`
 
+## Workflow
+
+Run commands in this sequence for a complete evaluation:
+
+1. **Download repositories**: `uv run python -m codespeak download_repos`
+2. **Collect baseline coverage**: `uv run python -m codespeak coverage baseline`
+3. **Generate tests**: `uv run python -m codespeak generate`
+4. **Collect artifacts**: `uv run python -m codespeak collect_artifacts`
+5. **Collect generated coverage**: `uv run python -m codespeak coverage generated`
+6. **Compare coverage**: `uv run python -m codespeak coverage diff`
+
 ## Core Commands
 - `uv run python -m codespeak download_repos` – clone repositories listed in `evals/github_repos.yaml` into `evals/github/`
 - `uv run python -m codespeak generate` – apply the latest prompt from `prompts/` to each cloned repo via `codex exec`

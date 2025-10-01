@@ -33,6 +33,15 @@ def cli():
     """CodeSpeak - Modern CLI for code evaluation workflows.
 
     Manage repositories, run evaluations, and track code coverage.
+
+    \b
+    Typical workflow:
+      1. download_repos    - Clone repositories from YAML file
+      2. coverage baseline - Collect baseline coverage metrics
+      3. generate          - Generate tests with codex
+      4. collect_artifacts - Gather generated documentation
+      5. coverage generated- Collect post-generation coverage
+      6. coverage diff     - Compare coverage improvements
     """
     pass
 
