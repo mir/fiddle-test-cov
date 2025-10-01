@@ -1,5 +1,9 @@
+from codespeak.cli import cli
+
+
 def main():
-    print("Hello from codespeak!")
+    """Entry point for the codespeak CLI."""
+    cli()
 
 
 if __name__ == "__main__":
