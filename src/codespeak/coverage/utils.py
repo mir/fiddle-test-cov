@@ -10,7 +10,6 @@ import sys
 import time
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Optional
 
 from .models import CommandResult
 
@@ -40,9 +39,9 @@ def run_command(command: Iterable[str]) -> CommandResult:
 def build_docker_command(
     image: str,
     repo_path: Path,
-    docker_cache: Optional[Path],
+    docker_cache: Path | None,
     inner_command: Iterable[str],
-    env: Optional[dict] = None,
+    env: dict | None = None,
 ) -> list[str]:
     """Build a docker run command with appropriate volume mounts and environment."""
     command: list[str] = ["docker", "run"]
@@ -69,9 +68,9 @@ def build_docker_command(
 def run_docker_command(
     image: str,
     repo_path: Path,
-    docker_cache: Optional[Path],
+    docker_cache: Path | None,
     inner_command: Iterable[str],
-    env: Optional[dict] = None,
+    env: dict | None = None,
 ) -> CommandResult:
     """Execute a command inside a Docker container."""
     docker_cmd = build_docker_command(image, repo_path, docker_cache, list(inner_command), env)
@@ -94,7 +93,7 @@ def format_log_entry(result: CommandResult) -> str:
     return "\n".join(line for line in lines if line)
 
 
-def discover_repositories(root: Path, explicit: Optional[list[str]]) -> list[str]:
+def discover_repositories(root: Path, explicit: list[str] | None) -> list[str]:
     """Find repositories to process."""
     if explicit:
         return sorted(explicit)
@@ -127,7 +126,7 @@ def remove_artifact(path: Path) -> None:
         path.unlink()
 
 
-def load_coverage_totals(json_path: Path) -> Optional[dict]:
+def load_coverage_totals(json_path: Path) -> dict | None:
     """Load coverage totals from a coverage.json file."""
     if not json_path.exists():
         return None

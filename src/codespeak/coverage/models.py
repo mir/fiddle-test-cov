@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -34,7 +33,7 @@ class RepoResult:
     status: str
     commands: list[CommandResult]
     artifacts: list[str]
-    coverage_totals: Optional[dict]
+    coverage_totals: dict | None
     started_at: str
     finished_at: str
 
@@ -54,12 +53,12 @@ class RepoResult:
 class CoverageTotals:
     """Coverage statistics for a repository."""
 
-    covered_lines: Optional[int]
-    num_statements: Optional[int]
-    percent_covered: Optional[float]
+    covered_lines: int | None
+    num_statements: int | None
+    percent_covered: float | None
 
     @classmethod
-    def from_dict(cls, data: Optional[dict]) -> "CoverageTotals":
+    def from_dict(cls, data: dict | None) -> CoverageTotals:
         """Create from a dictionary (e.g., from coverage.json)."""
         if not data:
             return cls(None, None, None)
@@ -71,7 +70,7 @@ class CoverageTotals:
             percent = (covered / statements) * 100
         return cls(covered, statements, percent)
 
-    def as_dict(self) -> dict[str, Optional[float]]:
+    def as_dict(self) -> dict[str, float | None]:
         return {
             "covered_lines": self.covered_lines,
             "num_statements": self.num_statements,
@@ -88,13 +87,13 @@ class RepoDiff:
     generated: CoverageTotals
     status: str
 
-    def delta_lines(self) -> Optional[int]:
+    def delta_lines(self) -> int | None:
         """Calculate change in covered lines."""
         if self.baseline.covered_lines is None or self.generated.covered_lines is None:
             return None
         return self.generated.covered_lines - self.baseline.covered_lines
 
-    def delta_percent(self) -> Optional[float]:
+    def delta_percent(self) -> float | None:
         """Calculate change in coverage percentage."""
         if self.baseline.percent_covered is None or self.generated.percent_covered is None:
             return None

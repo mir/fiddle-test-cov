@@ -3,17 +3,14 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 import click
 import yaml
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.table import Table
 
 from codespeak.coverage import (
     compute_diff,
@@ -210,16 +207,19 @@ def generate(github_root: str, prompts_dir: str, repo: tuple[str, ...]):
         try:
             subprocess.run(
                 [
-                    "codex", "exec",
-                    "--cd", str(repo_dir),
-                    "--sandbox", "workspace-write",
+                    "codex",
+                    "exec",
+                    "--cd",
+                    str(repo_dir),
+                    "--sandbox",
+                    "workspace-write",
                     prompt_content,
                 ],
                 check=True,
             )
-            console.print(f"  ✓ [green]Completed[/green]\n")
+            console.print("  ✓ [green]Completed[/green]\n")
         except subprocess.CalledProcessError:
-            console.print(f"  ✗ [red]Failed[/red]\n")
+            console.print("  ✗ [red]Failed[/red]\n")
 
     console.print("[bold green]✓[/bold green] Run completed")
     console.print("Run [bold]codespeak collect-artifacts[/bold] to gather summaries")
@@ -285,10 +285,12 @@ def collect_artifacts(github_root: str, artifacts_root: str, repo: tuple[str, ..
         # Remove existing artifacts
         if dest_dir.exists():
             import shutil
+
             shutil.rmtree(dest_dir)
 
         # Copy docs
         import shutil
+
         shutil.copytree(docs_dir, dest_dir)
         console.print(f"  ✓ [green]{repo_name}[/green]")
         collected += 1
@@ -348,7 +350,7 @@ def run_all(
     prompts_dir: str,
     artifacts_root: str,
     docker_image: str,
-    docker_cache: Optional[str],
+    docker_cache: str | None,
     skip_html: bool,
     repo: tuple[str, ...],
 ):
@@ -478,7 +480,7 @@ def coverage_baseline(
     artifacts_root: str,
     github_root: str,
     docker_image: str,
-    docker_cache: Optional[str],
+    docker_cache: str | None,
     repo: tuple[str, ...],
     skip_html: bool,
 ):
@@ -573,7 +575,7 @@ def coverage_generated(
     artifacts_root: str,
     github_root: str,
     docker_image: str,
-    docker_cache: Optional[str],
+    docker_cache: str | None,
     repo: tuple[str, ...],
     skip_html: bool,
 ):
@@ -644,7 +646,7 @@ def coverage_generated(
     "--output",
     help="File to write JSON summary to",
 )
-def coverage_diff(artifacts_root: str, output: Optional[str]):
+def coverage_diff(artifacts_root: str, output: str | None):
     """Compare baseline vs generated coverage.
 
     Shows coverage improvements from generated tests.
@@ -654,8 +656,13 @@ def coverage_diff(artifacts_root: str, output: Optional[str]):
     generated_path = artifacts_path / "coverage_reports_after"
 
     if not baseline_path.exists() or not generated_path.exists():
-        console.print(f"[red]Error:[/red] Baseline or generated artifacts missing under {artifacts_root}")
-        console.print("Run [bold]codespeak coverage baseline[/bold] and [bold]codespeak coverage generated[/bold] first")
+        console.print(
+            f"[red]Error:[/red] Baseline or generated artifacts missing under {artifacts_root}"
+        )
+        console.print(
+            "Run [bold]codespeak coverage baseline[/bold] and "
+            "[bold]codespeak coverage generated[/bold] first"
+        )
         sys.exit(1)
 
     console.print("[bold blue]Computing coverage diff...[/bold blue]\n")
@@ -676,15 +683,9 @@ def coverage_diff(artifacts_root: str, output: Optional[str]):
     agg_base = aggregate_summary["baseline"]
     agg_gen = aggregate_summary["generated"]
     agg_delta = aggregate_summary["delta"]
-    print(
-        f"Baseline covered: {agg_base['covered_lines']} ({agg_base['percent_covered']})"
-    )
-    print(
-        f"Generated covered: {agg_gen['covered_lines']} ({agg_gen['percent_covered']})"
-    )
-    print(
-        f"Delta lines: {agg_delta['covered_lines']} | Delta pct: {agg_delta['percent_covered']}"
-    )
+    print(f"Baseline covered: {agg_base['covered_lines']} ({agg_base['percent_covered']})")
+    print(f"Generated covered: {agg_gen['covered_lines']} ({agg_gen['percent_covered']})")
+    print(f"Delta lines: {agg_delta['covered_lines']} | Delta pct: {agg_delta['percent_covered']}")
 
     # Save JSON if requested
     if output:

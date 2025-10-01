@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
-from typing import Optional
 
 from .models import CommandResult, RepoResult
 from .utils import (
@@ -26,7 +25,7 @@ def execute_for_repo(
     github_root: Path,
     skip_html: bool,
     docker_image: str,
-    docker_cache: Optional[Path],
+    docker_cache: Path | None,
 ) -> RepoResult:
     """
     Execute coverage collection for a single repository.
@@ -44,7 +43,9 @@ def execute_for_repo(
         RepoResult with status and coverage information
     """
     repo_path = github_root / repo
-    phase_dir = artifacts_root / ("coverage_reports_before" if phase == "baseline" else "coverage_reports_after")
+    phase_dir = artifacts_root / (
+        "coverage_reports_before" if phase == "baseline" else "coverage_reports_after"
+    )
     artifacts_dir = phase_dir / repo
     artifacts_dir.mkdir(parents=True, exist_ok=True)
 
@@ -94,7 +95,18 @@ def execute_for_repo(
         docker_image,
         repo_path,
         docker_cache,
-        ["pip", "install", "--user", "coverage", "pytest", "pytest-django", "django==3.2.19", "pyjwt", "celery", "python-jose"],
+        [
+            "pip",
+            "install",
+            "--user",
+            "coverage",
+            "pytest",
+            "pytest-django",
+            "django==3.2.19",
+            "pyjwt",
+            "celery",
+            "python-jose",
+        ],
         user_env,
     )
     commands.append(result)
@@ -139,10 +151,22 @@ def execute_for_repo(
         python_cmd = ["python"]
 
     # Set PATH to include user-installed binaries
-    user_env = {**(env or {}), "PYTHONUSERBASE": "/workspace/.local", "PATH": "/workspace/.local/bin:/usr/local/bin:/usr/bin:/bin"}
+    user_env = {
+        **(env or {}),
+        "PYTHONUSERBASE": "/workspace/.local",
+        "PATH": (
+            "/workspace/.local/bin:/usr/local/bin:/usr/bin:/bin"
+        ),
+    }
 
     # Step 2: clear previous coverage data
-    erase = run_docker_command(docker_image, repo_path, docker_cache, python_cmd + ["-m", "coverage", "erase"], user_env)
+    erase = run_docker_command(
+        docker_image,
+        repo_path,
+        docker_cache,
+        python_cmd + ["-m", "coverage", "erase"],
+        user_env,
+    )
     commands.append(erase)
     log_lines.append(format_log_entry(erase))
 
@@ -187,7 +211,7 @@ def execute_for_repo(
     if xml_export.returncode != 0 and status == "completed":
         status = "export_failed"
 
-    html_export: Optional[CommandResult] = None
+    html_export: CommandResult | None = None
     if not skip_html:
         html_export = run_docker_command(
             docker_image,
@@ -269,7 +293,7 @@ def execute_coverage_collection(
     repos: list[str],
     skip_html: bool,
     docker_image: str,
-    docker_cache: Optional[Path],
+    docker_cache: Path | None,
 ) -> list[RepoResult]:
     """
     Execute coverage collection for multiple repositories.
@@ -324,7 +348,7 @@ def save_summary(
     artifacts_root: Path,
     github_root: Path,
     docker_image: str,
-    docker_cache: Optional[Path],
+    docker_cache: Path | None,
     results: list[RepoResult],
 ) -> Path:
     """
@@ -351,7 +375,9 @@ def save_summary(
         "results": [result.as_dict() for result in results],
     }
 
-    phase_dir = artifacts_root / ("coverage_reports_before" if phase == "baseline" else "coverage_reports_after")
+    phase_dir = artifacts_root / (
+        "coverage_reports_before" if phase == "baseline" else "coverage_reports_after"
+    )
     phase_dir.mkdir(parents=True, exist_ok=True)
     summary_path = phase_dir / "summary.json"
     summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True))

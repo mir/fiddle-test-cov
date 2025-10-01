@@ -5,7 +5,6 @@ from __future__ import annotations
 import datetime as dt
 import json
 from pathlib import Path
-from typing import Optional
 
 from .models import CoverageTotals, RepoDiff
 
@@ -71,9 +70,7 @@ def aggregate(records: list[RepoDiff]) -> dict:
         total_generated_lines += gen.covered_lines
         total_statements += statements
 
-    percent_baseline = (
-        (total_baseline_lines / total_statements) * 100 if total_statements else None
-    )
+    percent_baseline = (total_baseline_lines / total_statements) * 100 if total_statements else None
     percent_generated = (
         (total_generated_lines / total_statements) * 100 if total_statements else None
     )
@@ -114,7 +111,7 @@ def format_repo_line(diff: RepoDiff) -> str:
         percent = totals.percent_covered if totals.percent_covered is not None else 0.0
         return f"{totals.covered_lines}/{totals.num_statements} ({percent:.2f}%)"
 
-    def fmt_delta(value: Optional[float], suffix: str = "") -> str:
+    def fmt_delta(value: float | None, suffix: str = "") -> str:
         if value is None:
             return "n/a"
         sign = "+" if value >= 0 else ""
@@ -131,8 +128,8 @@ def format_repo_line(diff: RepoDiff) -> str:
 
 def compute_diff(
     artifacts_root: Path,
-    baseline_dir: Optional[Path] = None,
-    generated_dir: Optional[Path] = None,
+    baseline_dir: Path | None = None,
+    generated_dir: Path | None = None,
 ) -> tuple[list[RepoDiff], dict]:
     """
     Compare baseline and generated coverage across repositories.
