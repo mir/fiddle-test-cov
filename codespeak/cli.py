@@ -15,6 +15,15 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
+from codespeak.coverage import (
+    compute_diff,
+    discover_repositories,
+    execute_coverage_collection,
+    format_repo_line,
+    save_diff_json,
+    save_summary,
+)
+
 console = Console()
 
 
@@ -41,7 +50,7 @@ def cli():
     help="YAML file containing repository URLs",
     show_default=True,
 )
-def repos(github_root: str, repos_file: str):
+def download_repos(github_root: str, repos_file: str):
     """Clone GitHub repositories from YAML file.
 
     Reads repository URLs from the YAML file and clones them into
@@ -119,7 +128,7 @@ def repos(github_root: str, repos_file: str):
     multiple=True,
     help="Specific repository to run (can be specified multiple times)",
 )
-def run(github_root: str, prompts_dir: str, repo: tuple[str, ...]):
+def generate(github_root: str, prompts_dir: str, repo: tuple[str, ...]):
     """Execute codex commands on repositories with the latest prompt.
 
     Resets each repository to a clean state, then runs the codex tool
@@ -130,7 +139,7 @@ def run(github_root: str, prompts_dir: str, repo: tuple[str, ...]):
 
     if not github_path.exists():
         console.print(f"[red]Error:[/red] GitHub root not found: {github_root}")
-        console.print("Run [bold]codespeak repos[/bold] first")
+        console.print("Run [bold]codespeak download_repos[/bold] first")
         sys.exit(1)
 
     # Find latest prompt
@@ -153,6 +162,7 @@ def run(github_root: str, prompts_dir: str, repo: tuple[str, ...]):
 
     if not repos:
         console.print("[yellow]Warning:[/yellow] No repositories found")
+        console.print("Run [bold]codespeak download_repos[/bold] to clone repositories first")
         return
 
     console.print(f"[bold blue]Processing {len(repos)} repositories...[/bold blue]\n")
@@ -199,7 +209,7 @@ def run(github_root: str, prompts_dir: str, repo: tuple[str, ...]):
             console.print(f"  ✗ [red]Failed[/red]\n")
 
     console.print("[bold green]✓[/bold green] Run completed")
-    console.print("Run [bold]codespeak collect[/bold] to gather summaries")
+    console.print("Run [bold]codespeak collect_artifacts[/bold] to gather summaries")
 
 
 @cli.command()
@@ -220,7 +230,7 @@ def run(github_root: str, prompts_dir: str, repo: tuple[str, ...]):
     multiple=True,
     help="Specific repository to collect from (can be specified multiple times)",
 )
-def collect(github_root: str, artifacts_root: str, repo: tuple[str, ...]):
+def collect_artifacts(github_root: str, artifacts_root: str, repo: tuple[str, ...]):
     """Collect documentation artifacts from repositories.
 
     Gathers generated docs from each repository and copies them
@@ -231,6 +241,7 @@ def collect(github_root: str, artifacts_root: str, repo: tuple[str, ...]):
 
     if not github_path.exists():
         console.print(f"[red]Error:[/red] GitHub root not found: {github_root}")
+        console.print("Run [bold]codespeak download_repos[/bold] to clone repositories first")
         sys.exit(1)
 
     # Get list of repositories
@@ -241,6 +252,7 @@ def collect(github_root: str, artifacts_root: str, repo: tuple[str, ...]):
 
     if not repos:
         console.print("[yellow]Warning:[/yellow] No repositories found")
+        console.print("Run [bold]codespeak download_repos[/bold] to clone repositories first")
         return
 
     artifacts_path.mkdir(parents=True, exist_ok=True)
@@ -326,39 +338,54 @@ def coverage_baseline(
 
     Runs existing tests to establish coverage baseline for comparison.
     """
+    artifacts_path = Path(artifacts_root)
     github_path = Path(github_root)
 
     if not github_path.exists():
         console.print(f"[red]Error:[/red] No repositories found under {github_root}")
-        console.print("Run [bold]codespeak repos[/bold] first")
+        console.print("Run [bold]codespeak download_repos[/bold] first")
         sys.exit(1)
 
     console.print("[bold blue]Collecting baseline coverage...[/bold blue]\n")
 
-    # Build command
-    cmd = [
-        sys.executable,
-        "scripts/run_coverage.py",
-        "baseline",
-        "--artifacts-root", artifacts_root,
-        "--github-root", github_root,
-        "--docker-image", docker_image,
-    ]
-
+    # Prepare Docker cache path
+    docker_cache_path = None
     if docker_cache:
-        cmd.extend(["--docker-cache", docker_cache])
+        docker_cache_path = Path(docker_cache)
+        if not docker_cache_path.is_absolute():
+            docker_cache_path = (Path.cwd() / docker_cache_path).resolve()
 
-    if skip_html:
-        cmd.append("--skip-html")
-
-    for r in repo:
-        cmd.extend(["--repo", r])
-
-    # Run coverage script
-    try:
-        subprocess.run(cmd, check=True)
-    except subprocess.CalledProcessError:
+    # Discover repositories
+    repos = discover_repositories(github_path, list(repo) if repo else None)
+    if not repos:
+        console.print("[red]Error:[/red] No repositories to process")
+        console.print("Run [bold]codespeak download_repos[/bold] first")
         sys.exit(1)
+
+    console.print(f"Running coverage phase 'baseline' for {len(repos)} repos.\n")
+
+    # Execute coverage collection
+    results = execute_coverage_collection(
+        phase="baseline",
+        artifacts_root=artifacts_path,
+        github_root=github_path,
+        repos=repos,
+        skip_html=skip_html,
+        docker_image=docker_image,
+        docker_cache=docker_cache_path,
+    )
+
+    # Save summary
+    summary_path = save_summary(
+        phase="baseline",
+        artifacts_root=artifacts_path,
+        github_root=github_path,
+        docker_image=docker_image,
+        docker_cache=docker_cache_path,
+        results=results,
+    )
+
+    console.print(f"\n[bold green]✓[/bold green] Summary written to {summary_path}")
 
 
 @coverage.command("generated")
@@ -406,39 +433,56 @@ def coverage_generated(
 
     Runs tests including generated ones to measure coverage improvement.
     """
-    artifacts_path = Path(artifacts_root) / "coverage_reports_before"
+    artifacts_path = Path(artifacts_root)
+    baseline_path = artifacts_path / "coverage_reports_before"
 
-    if not artifacts_path.exists():
+    if not baseline_path.exists():
         console.print(f"[red]Error:[/red] No baseline coverage found under {artifacts_root}")
         console.print("Run [bold]codespeak coverage baseline[/bold] first")
         sys.exit(1)
 
     console.print("[bold blue]Collecting generated coverage...[/bold blue]\n")
 
-    # Build command
-    cmd = [
-        sys.executable,
-        "scripts/run_coverage.py",
-        "generated",
-        "--artifacts-root", artifacts_root,
-        "--github-root", github_root,
-        "--docker-image", docker_image,
-    ]
+    github_path = Path(github_root)
 
+    # Prepare Docker cache path
+    docker_cache_path = None
     if docker_cache:
-        cmd.extend(["--docker-cache", docker_cache])
+        docker_cache_path = Path(docker_cache)
+        if not docker_cache_path.is_absolute():
+            docker_cache_path = (Path.cwd() / docker_cache_path).resolve()
 
-    if skip_html:
-        cmd.append("--skip-html")
-
-    for r in repo:
-        cmd.extend(["--repo", r])
-
-    # Run coverage script
-    try:
-        subprocess.run(cmd, check=True)
-    except subprocess.CalledProcessError:
+    # Discover repositories
+    repos = discover_repositories(github_path, list(repo) if repo else None)
+    if not repos:
+        console.print("[red]Error:[/red] No repositories to process")
+        console.print("Run [bold]codespeak download_repos[/bold] to clone repositories first")
         sys.exit(1)
+
+    console.print(f"Running coverage phase 'generated' for {len(repos)} repos.\n")
+
+    # Execute coverage collection
+    results = execute_coverage_collection(
+        phase="generated",
+        artifacts_root=artifacts_path,
+        github_root=github_path,
+        repos=repos,
+        skip_html=skip_html,
+        docker_image=docker_image,
+        docker_cache=docker_cache_path,
+    )
+
+    # Save summary
+    summary_path = save_summary(
+        phase="generated",
+        artifacts_root=artifacts_path,
+        github_root=github_path,
+        docker_image=docker_image,
+        docker_cache=docker_cache_path,
+        results=results,
+    )
+
+    console.print(f"\n[bold green]✓[/bold green] Summary written to {summary_path}")
 
 
 @coverage.command("diff")
@@ -468,21 +512,37 @@ def coverage_diff(artifacts_root: str, output: Optional[str]):
 
     console.print("[bold blue]Computing coverage diff...[/bold blue]\n")
 
-    # Build command
-    cmd = [
-        sys.executable,
-        "scripts/coverage_diff.py",
-        "--artifacts-root", artifacts_root,
-    ]
-
-    if output:
-        cmd.extend(["--output", output])
-
-    # Run diff script
+    # Compute diff
     try:
-        subprocess.run(cmd, check=True)
-    except subprocess.CalledProcessError:
+        records, aggregate_summary = compute_diff(artifacts_path, baseline_path, generated_path)
+    except (FileNotFoundError, ValueError) as e:
+        console.print(f"[red]Error:[/red] {e}")
         sys.exit(1)
+
+    # Print per-repository diff
+    for record in records:
+        print(format_repo_line(record))
+
+    # Print aggregate summary
+    print("\nAggregate:")
+    agg_base = aggregate_summary["baseline"]
+    agg_gen = aggregate_summary["generated"]
+    agg_delta = aggregate_summary["delta"]
+    print(
+        f"Baseline covered: {agg_base['covered_lines']} ({agg_base['percent_covered']})"
+    )
+    print(
+        f"Generated covered: {agg_gen['covered_lines']} ({agg_gen['percent_covered']})"
+    )
+    print(
+        f"Delta lines: {agg_delta['covered_lines']} | Delta pct: {agg_delta['percent_covered']}"
+    )
+
+    # Save JSON if requested
+    if output:
+        output_path = Path(output)
+        save_diff_json(output_path, baseline_path, generated_path, records, aggregate_summary)
+        console.print(f"\n[bold green]✓[/bold green] JSON summary written to {output_path}")
 
 
 if __name__ == "__main__":
