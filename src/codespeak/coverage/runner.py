@@ -154,9 +154,7 @@ def execute_for_repo(
     user_env = {
         **(env or {}),
         "PYTHONUSERBASE": "/workspace/.local",
-        "PATH": (
-            "/workspace/.local/bin:/usr/local/bin:/usr/bin:/bin"
-        ),
+        "PATH": ("/workspace/.local/bin:/usr/local/bin:/usr/bin:/bin"),
     }
 
     # Step 2: clear previous coverage data
