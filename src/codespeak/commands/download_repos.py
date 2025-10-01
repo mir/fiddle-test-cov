@@ -39,26 +39,48 @@ def download_repos(github_root: str, repos_file: str):
     if not repos_path.exists():
         console.print(f"[yellow]Repository file not found:[/yellow] {repos_file}\n")
 
-        # Prompt user to create the file with default taiga repo
-        create = click.confirm(
-            "Would you like to create the file with the taiga-back repository as default?",
-            default=True,
-        )
+        # Prompt user to choose which repositories to add
+        console.print("Choose repositories to add:")
+        console.print("  [1] Empty file (add repos manually later)")
+        console.print("  [2] taiga-back only")
+        console.print("  [3] fiddle-test-cov only")
+        console.print("  [4] Both taiga-back and fiddle-test-cov")
 
-        if not create:
-            console.print("[red]Aborted.[/red] Please create the file manually.")
-            sys.exit(1)
+        choice = click.prompt(
+            "\nEnter your choice",
+            type=click.IntRange(1, 4),
+            default=2,
+            show_default=True,
+        )
 
         # Create evals directory if it doesn't exist
         repos_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Write default taiga repo
-        default_repo = "https://github.com/taigaio/taiga-back"
-        with open(repos_path, "w") as f:
-            f.write(f"- {default_repo}\n")
+        # Determine repos to add based on choice
+        repos_to_add = []
+        if choice == 2:
+            repos_to_add = ["https://github.com/taigaio/taiga-back"]
+        elif choice == 3:
+            repos_to_add = ["https://github.com/mir/fiddle-test-cov"]
+        elif choice == 4:
+            repos_to_add = [
+                "https://github.com/taigaio/taiga-back",
+                "https://github.com/mir/fiddle-test-cov",
+            ]
 
-        console.print(f"[green]✓[/green] Created {repos_file} with default repository")
-        console.print(f"  Default: {default_repo}\n")
+        # Write repos to file
+        with open(repos_path, "w") as f:
+            for repo in repos_to_add:
+                f.write(f"- {repo}\n")
+
+        console.print(f"[green]✓[/green] Created {repos_file}")
+        if repos_to_add:
+            console.print("  Repositories:")
+            for repo in repos_to_add:
+                console.print(f"    - {repo}")
+        else:
+            console.print("  (empty - add repositories manually)")
+        console.print()
 
     # Load repository URLs
     with open(repos_path) as f:
