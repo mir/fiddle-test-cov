@@ -3,7 +3,7 @@
 Coverage-driven automation for generating and evaluating tests across target repositories.
 
 ## Docs
-See the docs/ folder for the cthought process and results.
+See the docs/ folder for the thought process and results.
 
 ## Setup
 - Requirements: Python 3.13+, uv, Git, OpenAI Codex CLI
