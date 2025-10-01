@@ -25,6 +25,7 @@ def cli():
     \b
     Quick start:
       run-all              - Execute complete workflow automatically
+      update-tests         - Update tests in current directory
 
     \b
     Typical workflow (manual):
