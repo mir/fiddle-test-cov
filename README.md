@@ -11,19 +11,30 @@ See the docs/ folder for the cthought process and results.
 
 ## Workflow
 
-Run commands in this sequence for a complete evaluation:
+### Quick Start
 
-1. **Download repositories**: `uv run python -m codespeak download_repos`
+Run the complete workflow with a single command:
+
+```bash
+uv run python -m codespeak run-all
+```
+
+### Manual Steps
+
+Or run commands individually in this sequence:
+
+1. **Download repositories**: `uv run python -m codespeak download-repos`
 2. **Collect baseline coverage**: `uv run python -m codespeak coverage baseline`
 3. **Generate tests**: `uv run python -m codespeak generate`
-4. **Collect artifacts**: `uv run python -m codespeak collect_artifacts`
+4. **Collect artifacts**: `uv run python -m codespeak collect-artifacts`
 5. **Collect generated coverage**: `uv run python -m codespeak coverage generated`
 6. **Compare coverage**: `uv run python -m codespeak coverage diff`
 
 ## Core Commands
-- `uv run python -m codespeak download_repos` – clone repositories listed in `evals/github_repos.yaml` into `evals/github/`
+- `uv run python -m codespeak run-all` – run the complete evaluation workflow (all steps below)
+- `uv run python -m codespeak download-repos` – clone repositories listed in `evals/github_repos.yaml` into `evals/github/`
 - `uv run python -m codespeak generate` – apply the latest prompt from `prompts/` to each cloned repo via `codex exec`
-- `uv run python -m codespeak collect_artifacts` – copy generated docs into `run_artifacts/agent_reports/`
+- `uv run python -m codespeak collect-artifacts` – copy generated docs into `run_artifacts/agent_reports/`
 - `uv run python -m codespeak coverage baseline` – gather pre-generation coverage metrics
 - `uv run python -m codespeak coverage generated` – gather post-generation coverage metrics
 - `uv run python -m codespeak coverage diff` – compare baseline vs generated coverage reports

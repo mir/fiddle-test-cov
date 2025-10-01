@@ -35,11 +35,15 @@ def cli():
     Manage repositories, run evaluations, and track code coverage.
 
     \b
-    Typical workflow:
-      1. download_repos    - Clone repositories from YAML file
+    Quick start:
+      run-all              - Execute complete workflow automatically
+
+    \b
+    Typical workflow (manual):
+      1. download-repos    - Clone repositories from YAML file
       2. coverage baseline - Collect baseline coverage metrics
       3. generate          - Generate tests with codex
-      4. collect_artifacts - Gather generated documentation
+      4. collect-artifacts - Gather generated documentation
       5. coverage generated- Collect post-generation coverage
       6. coverage diff     - Compare coverage improvements
     """
@@ -148,7 +152,7 @@ def generate(github_root: str, prompts_dir: str, repo: tuple[str, ...]):
 
     if not github_path.exists():
         console.print(f"[red]Error:[/red] GitHub root not found: {github_root}")
-        console.print("Run [bold]codespeak download_repos[/bold] first")
+        console.print("Run [bold]codespeak download-repos[/bold] first")
         sys.exit(1)
 
     # Find latest prompt
@@ -171,7 +175,7 @@ def generate(github_root: str, prompts_dir: str, repo: tuple[str, ...]):
 
     if not repos:
         console.print("[yellow]Warning:[/yellow] No repositories found")
-        console.print("Run [bold]codespeak download_repos[/bold] to clone repositories first")
+        console.print("Run [bold]codespeak download-repos[/bold] to clone repositories first")
         return
 
     console.print(f"[bold blue]Processing {len(repos)} repositories...[/bold blue]\n")
@@ -218,7 +222,7 @@ def generate(github_root: str, prompts_dir: str, repo: tuple[str, ...]):
             console.print(f"  ✗ [red]Failed[/red]\n")
 
     console.print("[bold green]✓[/bold green] Run completed")
-    console.print("Run [bold]codespeak collect_artifacts[/bold] to gather summaries")
+    console.print("Run [bold]codespeak collect-artifacts[/bold] to gather summaries")
 
 
 @cli.command()
@@ -250,7 +254,7 @@ def collect_artifacts(github_root: str, artifacts_root: str, repo: tuple[str, ..
 
     if not github_path.exists():
         console.print(f"[red]Error:[/red] GitHub root not found: {github_root}")
-        console.print("Run [bold]codespeak download_repos[/bold] to clone repositories first")
+        console.print("Run [bold]codespeak download-repos[/bold] to clone repositories first")
         sys.exit(1)
 
     # Get list of repositories
@@ -261,7 +265,7 @@ def collect_artifacts(github_root: str, artifacts_root: str, repo: tuple[str, ..
 
     if not repos:
         console.print("[yellow]Warning:[/yellow] No repositories found")
-        console.print("Run [bold]codespeak download_repos[/bold] to clone repositories first")
+        console.print("Run [bold]codespeak download-repos[/bold] to clone repositories first")
         return
 
     artifacts_path.mkdir(parents=True, exist_ok=True)
@@ -291,6 +295,141 @@ def collect_artifacts(github_root: str, artifacts_root: str, repo: tuple[str, ..
 
     console.print(f"\n[bold green]✓[/bold green] Collected {collected} artifacts")
     console.print(f"Docs are in {artifacts_path}/")
+
+
+@cli.command()
+@click.option(
+    "--github-root",
+    default="evals/github",
+    help="Directory to clone repositories into",
+    show_default=True,
+)
+@click.option(
+    "--repos-file",
+    default="evals/github_repos.yaml",
+    help="YAML file containing repository URLs",
+    show_default=True,
+)
+@click.option(
+    "--prompts-dir",
+    default="prompts",
+    help="Directory containing prompt files",
+    show_default=True,
+)
+@click.option(
+    "--artifacts-root",
+    default="run_artifacts",
+    help="Directory for coverage artifacts",
+    show_default=True,
+)
+@click.option(
+    "--docker-image",
+    default="python:3.11-bullseye",
+    help="Docker image for running coverage",
+    show_default=True,
+)
+@click.option(
+    "--docker-cache",
+    help="Host path to mount as UV cache directory",
+)
+@click.option(
+    "--skip-html",
+    is_flag=True,
+    help="Skip HTML report generation",
+)
+@click.option(
+    "--repo",
+    multiple=True,
+    help="Specific repository to process (can be specified multiple times)",
+)
+def run_all(
+    github_root: str,
+    repos_file: str,
+    prompts_dir: str,
+    artifacts_root: str,
+    docker_image: str,
+    docker_cache: Optional[str],
+    skip_html: bool,
+    repo: tuple[str, ...],
+):
+    """Run the complete evaluation workflow.
+
+    Executes all steps in sequence:
+    1. Download repositories
+    2. Collect baseline coverage
+    3. Generate tests
+    4. Collect artifacts
+    5. Collect generated coverage
+    6. Compare coverage
+    """
+    console.print("[bold blue]Starting complete evaluation workflow...[/bold blue]\n")
+
+    # Step 1: Download repos
+    console.print("[bold]Step 1/6:[/bold] Downloading repositories...")
+    ctx = click.get_current_context()
+    ctx.invoke(
+        download_repos,
+        github_root=github_root,
+        repos_file=repos_file,
+    )
+    console.print()
+
+    # Step 2: Baseline coverage
+    console.print("[bold]Step 2/6:[/bold] Collecting baseline coverage...")
+    ctx.invoke(
+        coverage_baseline,
+        artifacts_root=artifacts_root,
+        github_root=github_root,
+        docker_image=docker_image,
+        docker_cache=docker_cache,
+        repo=repo,
+        skip_html=skip_html,
+    )
+    console.print()
+
+    # Step 3: Generate tests
+    console.print("[bold]Step 3/6:[/bold] Generating tests...")
+    ctx.invoke(
+        generate,
+        github_root=github_root,
+        prompts_dir=prompts_dir,
+        repo=repo,
+    )
+    console.print()
+
+    # Step 4: Collect artifacts
+    console.print("[bold]Step 4/6:[/bold] Collecting artifacts...")
+    ctx.invoke(
+        collect_artifacts,
+        github_root=github_root,
+        artifacts_root=artifacts_root,
+        repo=repo,
+    )
+    console.print()
+
+    # Step 5: Generated coverage
+    console.print("[bold]Step 5/6:[/bold] Collecting generated coverage...")
+    ctx.invoke(
+        coverage_generated,
+        artifacts_root=artifacts_root,
+        github_root=github_root,
+        docker_image=docker_image,
+        docker_cache=docker_cache,
+        repo=repo,
+        skip_html=skip_html,
+    )
+    console.print()
+
+    # Step 6: Coverage diff
+    console.print("[bold]Step 6/6:[/bold] Computing coverage diff...")
+    ctx.invoke(
+        coverage_diff,
+        artifacts_root=artifacts_root,
+        output=None,
+    )
+    console.print()
+
+    console.print("[bold green]✓ Complete workflow finished successfully![/bold green]")
 
 
 @cli.group()
@@ -352,7 +491,7 @@ def coverage_baseline(
 
     if not github_path.exists():
         console.print(f"[red]Error:[/red] No repositories found under {github_root}")
-        console.print("Run [bold]codespeak download_repos[/bold] first")
+        console.print("Run [bold]codespeak download-repos[/bold] first")
         sys.exit(1)
 
     console.print("[bold blue]Collecting baseline coverage...[/bold blue]\n")
@@ -368,7 +507,7 @@ def coverage_baseline(
     repos = discover_repositories(github_path, list(repo) if repo else None)
     if not repos:
         console.print("[red]Error:[/red] No repositories to process")
-        console.print("Run [bold]codespeak download_repos[/bold] first")
+        console.print("Run [bold]codespeak download-repos[/bold] first")
         sys.exit(1)
 
     console.print(f"Running coverage phase 'baseline' for {len(repos)} repos.\n")
@@ -465,7 +604,7 @@ def coverage_generated(
     repos = discover_repositories(github_path, list(repo) if repo else None)
     if not repos:
         console.print("[red]Error:[/red] No repositories to process")
-        console.print("Run [bold]codespeak download_repos[/bold] to clone repositories first")
+        console.print("Run [bold]codespeak download-repos[/bold] to clone repositories first")
         sys.exit(1)
 
     console.print(f"Running coverage phase 'generated' for {len(repos)} repos.\n")
