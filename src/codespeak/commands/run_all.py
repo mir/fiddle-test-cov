@@ -28,8 +28,8 @@ console = Console()
 )
 @click.option(
     "--prompts-dir",
-    default="prompts",
-    help="Directory containing prompt files",
+    default=None,
+    help="Directory containing prompt files (defaults to package prompts)",
     show_default=True,
 )
 @click.option(
@@ -61,7 +61,7 @@ console = Console()
 def run_all(
     github_root: str,
     repos_file: str,
-    prompts_dir: str,
+    prompts_dir: str | None,
     artifacts_root: str,
     docker_image: str,
     docker_cache: str | None,

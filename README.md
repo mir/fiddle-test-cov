@@ -43,7 +43,7 @@ This runs the same prompt as the generate command but operates in your current d
 ## Core Commands
 - `uv run codespeak run-all` – run the complete evaluation workflow (all steps below)
 - `uv run codespeak download-repos` – clone repositories listed in `evals/github_repos.yaml` into `evals/github/`
-- `uv run codespeak generate` – apply the latest prompt from `prompts/` to each cloned repo via `codex exec`
+- `uv run codespeak generate` – apply the latest prompt from package to each cloned repo via `codex exec`
 - `uv run codespeak update-tests` – run the same prompt as generate but in the current directory (useful for maintaining test coverage in any repo)
 - `uv run codespeak collect-artifacts` – copy generated docs into `run_artifacts/agent_reports/`
 - `uv run codespeak coverage baseline` – gather pre-generation coverage metrics
@@ -54,9 +54,9 @@ This runs the same prompt as the generate command but operates in your current d
 - `src/codespeak/` – main package containing CLI and coverage modules
   - `cli.py` – modern CLI tool for all automation tasks
   - `coverage/` – coverage collection and analysis modules
+  - `prompts/` – Codex CLI prompt iterations (`v0.md`, `v1.md`, `v2.md`)
 - `pyproject.toml` – Python package metadata (requires Python ≥3.13, depends on `coverage`, `click`, `rich`)
 - `docs/` – research and process notes (`1_assignment.md` … `8_wrap_up.md`, `3_research/`, `swt-bench-paper.*`)
-- `prompts/` – Codex CLI prompt iterations (`v0.md`, `v1.md`, `v2.md`)
 - `evals/` – evaluation assets (`github_repos*.yaml`, `bench/`, `github/` clones)
 - `run_artifacts/` – collected run outputs (`agent_reports/`, `coverage_reports_before/`, `coverage_reports_after/`)
 - `AGENTS.md` – operating guidelines for agents working on this project

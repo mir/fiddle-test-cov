@@ -21,8 +21,8 @@ console = Console()
 )
 @click.option(
     "--prompts-dir",
-    default="prompts",
-    help="Directory containing prompt files",
+    default=None,
+    help="Directory containing prompt files (defaults to package prompts)",
     show_default=True,
 )
 @click.option(
@@ -30,14 +30,19 @@ console = Console()
     multiple=True,
     help="Specific repository to run (can be specified multiple times)",
 )
-def generate(github_root: str, prompts_dir: str, repo: tuple[str, ...]):
+def generate(github_root: str, prompts_dir: str | None, repo: tuple[str, ...]):
     """Execute codex commands on repositories with the latest prompt.
 
     Resets each repository to a clean state, then runs the codex tool
     with the latest versioned prompt file.
     """
     github_path = Path(github_root)
-    prompts_path = Path(prompts_dir)
+
+    # Use package prompts if no custom path provided
+    if prompts_dir is None:
+        prompts_path = Path(__file__).parent.parent / "prompts"
+    else:
+        prompts_path = Path(prompts_dir)
 
     if not github_path.exists():
         console.print(f"[red]Error:[/red] GitHub root not found: {github_root}")

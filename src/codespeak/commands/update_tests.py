@@ -15,17 +15,22 @@ console = Console()
 @click.command()
 @click.option(
     "--prompts-dir",
-    default="prompts",
-    help="Directory containing prompt files",
+    default=None,
+    help="Directory containing prompt files (defaults to package prompts)",
     show_default=True,
 )
-def update_tests(prompts_dir: str):
+def update_tests(prompts_dir: str | None):
     """Execute codex command in the current directory with the latest prompt.
 
     Runs the codex tool with the latest versioned prompt file in the current
     working directory. Useful for maintaining test coverage in any repository.
     """
-    prompts_path = Path(prompts_dir)
+    # Use package prompts if no custom path provided
+    if prompts_dir is None:
+        prompts_path = Path(__file__).parent.parent / "prompts"
+    else:
+        prompts_path = Path(prompts_dir)
+
     current_dir = Path.cwd()
 
     # Find latest prompt
