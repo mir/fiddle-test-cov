@@ -5,23 +5,41 @@ Coverage-driven automation for generating and evaluating tests across target rep
 ## Docs
 See the docs/ folder for the thought process and results.
 
+## Installation
+
+Install as a tool from GitHub:
+
+```bash
+uv tool install git+ssh://git@github.com/mir/fiddle-test-cov.git
+```
+
 ## Setup
 - Requirements: Python 3.13+, uv, Git, OpenAI Codex CLI
-- Install dependencies: `uv sync`
+- Install dependencies (for development): `uv sync`
 
-## Workflow
+## Usage
 
-### Quick Start
+### Update Tests in Any Project
 
-Run the complete workflow with a single command:
+After installation, run in any project directory:
+
+```bash
+codespeak update-tests
+```
+
+This applies AI-powered test generation to improve coverage in your current directory.
+
+### Full Evaluation Workflow (Development)
+
+For development and evaluation, clone this repo and use:
+
+#### Quick Start
 
 ```bash
 uv run codespeak run-all
 ```
 
-### Manual Steps
-
-Or run commands individually in this sequence:
+#### Manual Steps
 
 1. **Download repositories**: `uv run codespeak download-repos`
 2. **Collect baseline coverage**: `uv run codespeak coverage baseline`
@@ -30,25 +48,19 @@ Or run commands individually in this sequence:
 5. **Collect generated coverage**: `uv run codespeak coverage generated`
 6. **Compare coverage**: `uv run codespeak coverage diff`
 
-### Update Tests in Current Directory
-
-To maintain test coverage in any repository:
-
-```bash
-uv run codespeak update-tests
-```
-
-This runs the same prompt as the generate command but operates in your current directory.
-
 ## Core Commands
-- `uv run codespeak run-all` – run the complete evaluation workflow (all steps below)
-- `uv run codespeak download-repos` – clone repositories listed in `evals/github_repos.yaml` into `evals/github/`
-- `uv run codespeak generate` – apply the latest prompt from package to each cloned repo via `codex exec`
-- `uv run codespeak update-tests` – run the same prompt as generate but in the current directory (useful for maintaining test coverage in any repo)
-- `uv run codespeak collect-artifacts` – copy generated docs into `run_artifacts/agent_reports/`
-- `uv run codespeak coverage baseline` – gather pre-generation coverage metrics
-- `uv run codespeak coverage generated` – gather post-generation coverage metrics
-- `uv run codespeak coverage diff` – compare baseline vs generated coverage reports
+
+### Main Command
+- `codespeak update-tests` – apply AI-powered test generation in current directory
+
+### Development Commands
+- `codespeak run-all` – run complete evaluation workflow
+- `codespeak download-repos` – clone repositories from `evals/github_repos.yaml`
+- `codespeak generate` – apply prompts to cloned repos
+- `codespeak collect-artifacts` – gather generated reports
+- `codespeak coverage baseline` – collect pre-generation coverage
+- `codespeak coverage generated` – collect post-generation coverage
+- `codespeak coverage diff` – compare coverage reports
 
 ## Repository Guide
 - `src/codespeak/` – main package containing CLI and coverage modules
